@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'model/item.dart';
 
 void main() => runApp(MyApp());
@@ -28,9 +29,6 @@ class HomePage extends StatefulWidget {
 
   void inicializaItems() {
     items = [];
-    items.add(Item(title: "Titulo 1", done: false));
-    items.add(Item(title: "Titulo 2", done: true));
-    items.add(Item(title: "Titulo 3", done: false));
   }
 }
 
@@ -42,6 +40,8 @@ class _HomePageState extends State<HomePage> {
       if(novaTarefa.text.isNotEmpty){
         widget.items.add(Item(title: novaTarefa.text, done: false));
         novaTarefa.clear();
+        atualizaShared();
+        FocusScope.of(context).requestFocus(new FocusNode());
       }
     });
   }
@@ -49,7 +49,29 @@ class _HomePageState extends State<HomePage> {
   void removeTarefa(int index){
     setState(() {
       widget.items.removeAt(index);
+      atualizaShared();
     });
+  }
+
+  Future carregaShared() async {
+    var sharedPreferences = await SharedPreferences.getInstance();
+    var data = sharedPreferences.getString('data');
+    if(data != null){
+      Iterable decoded = jsonDecode(data);
+      List<Item> result = decoded.map((x) => Item.fromJson(x)).toList();
+      setState(() {
+        widget.items = result;
+      });
+    }
+  }
+
+  atualizaShared() async {
+    var sharedPreferences = await SharedPreferences.getInstance();
+    await sharedPreferences.setString('data', jsonEncode(widget.items));
+  }
+
+  _HomePageState(){
+    carregaShared();
   }
 
   @override
@@ -82,6 +104,7 @@ class _HomePageState extends State<HomePage> {
               onChanged: (value) {
                 setState(() {
                   item.done = value;
+                  atualizaShared();
                 });
               },
             ),
